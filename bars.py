@@ -1,29 +1,37 @@
 import json
+import os.path
+import argparse
+import sys
 from math import pi, sqrt, sin, cos, atan2
 
 
+CONVERT_TO_KM = 6367
+STRAIGHT_ANGLE = 180
+
+
 def load_data(filepath):
-    with open(filepath, 'r') as f:
-        data = json.loads(f.read())
-    return data
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    else:
+        print('Путь до файла указан неверно!')
+        return None
 
 
 def get_biggest_bar(data):
     SeatsCount_max = sorted(data, key=lambda d: d['Cells']['SeatsCount'],
                             reverse=True)[0]['Cells']['SeatsCount']
-    bars_with_SeatsCount_max = [bar['Cells']['Name'] for bar in data
-                                if bar['Cells']['SeatsCount'] ==
-                                SeatsCount_max]
-    return bars_with_SeatsCount_max
+    biggest_bar = [bar['Cells']['Name'] for bar in data
+                   if bar['Cells']['SeatsCount'] == SeatsCount_max]
+    return biggest_bar
 
 
 def get_smallest_bar(data):
     SeatsCount_min = sorted(data, key=lambda d:
                             d['Cells']['SeatsCount'])[0]['Cells']['SeatsCount']
-    bars_with_SeatsCount_min = [bar['Cells']['Name'] for bar in data
-                                if bar['Cells']['SeatsCount'] ==
-                                SeatsCount_min]
-    return bars_with_SeatsCount_min
+    smallest_bar = [bar['Cells']['Name'] for bar in data
+                    if bar['Cells']['SeatsCount'] == SeatsCount_min]
+    return smallest_bar
 
 
 def get_distance(pos1, pos2):
@@ -31,13 +39,13 @@ def get_distance(pos1, pos2):
     long1 = float(pos1['long'])
     lat2 = float(pos2['lat'])
     long2 = float(pos2['long'])
-    degree_to_rad = float(pi / 180.0)
+    degree_to_rad = float(pi / STRAIGHT_ANGLE)
     d_lat = (lat2 - lat1) * degree_to_rad
     d_long = (long2 - long1) * degree_to_rad
-    a = pow(sin(d_lat / 2), 2) + cos(lat1 * degree_to_rad) * \
+    dist = pow(sin(d_lat / 2), 2) + cos(lat1 * degree_to_rad) * \
         cos(lat2 * degree_to_rad) * pow(sin(d_long / 2), 2)
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    km = 6367 * c
+    lin_dist = 2 * atan2(sqrt(dist), sqrt(1 - dist))
+    km = CONVERT_TO_KM * lin_dist
     return km
 
 
@@ -50,25 +58,32 @@ def get_closest_bar(data, longitude, latitude):
     return sorted(distance, key=lambda d: d['distance'])[0]['name']
 
 
+def createParser():
+    parser = argparse.ArgumentParser(description='Программа для поиска самого \
+                                     большого, самого маленького и \
+                                     самого близкого бара Москвы.')
+    parser.add_argument('-f', '--file', required=True, metavar='ФАЙЛ',
+                        help='Путь до файла в формате json.')
+    parser.add_argument('-c', '--coordinates', nargs=2, type=float,
+                        metavar='КООРДИНАТЫ',
+                        help='Координаты: долгота и широта (через пробел).')
+    parser.add_argument('-s', '--smallest', action='store_true',
+                        default=False, help='Вывести самый маленький бар.')
+    parser.add_argument('-b', '--biggest', action='store_true',
+                        default=False, help='Вывести самый большой бар.')
+    return parser
+
+
 if __name__ == '__main__':
-    while True:
-        try:
-            longitude = float(input(
-                'Enter longitude (default: 37.621099): ') or '37.621099')
-            break
-        except:
-            print('Incorrect value!')
-    while True:
-        try:
-            latitude = float(input(
-                'Enter latitude (default: 55.753525): ') or '55.753525')
-            break
-        except:
-            print('Incorrect value!')
-    data = load_data('bar.json')
-    biggest_bar = get_biggest_bar(data)
-    smallest_bar = get_smallest_bar(data)
-    closest_bar = get_closest_bar(data, longitude, latitude)
-    print('Biggest bars: %s' % biggest_bar)
-    print('Smallest_bars: %s' % smallest_bar)
-    print('Closest_bar: %s' % closest_bar)
+    parser = createParser()
+    namespace = parser.parse_args()
+    data = load_data(namespace.file)
+    if not data:
+        sys.exit()
+    if namespace.biggest:
+        print('Самый большой бар: %s' % get_biggest_bar(data))
+    if namespace.smallest:
+        print('Самцй маленький бар: %s' % get_smallest_bar(data))
+    if namespace.coordinates:
+        print('Ближайший бар: %s' % get_closest_bar(data,
+              namespace.coordinates[0], namespace.coordinates[1]))
