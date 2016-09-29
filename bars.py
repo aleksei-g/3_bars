@@ -14,7 +14,6 @@ def load_data(filepath):
         with open(filepath, 'r') as f:
             return json.load(f)
     else:
-        print('Путь до файла указан неверно!')
         return None
 
 
@@ -79,6 +78,7 @@ if __name__ == '__main__':
     namespace = parser.parse_args()
     data = load_data(namespace.file)
     if not data:
+        print('Путь до файла указан неверно!')
         sys.exit()
     if namespace.biggest:
         print('Самый большой бар: %s' % get_biggest_bar(data))
